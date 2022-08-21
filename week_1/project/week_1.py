@@ -1,5 +1,6 @@
 import csv
 from datetime import datetime
+import logging
 from typing import List
 
 from dagster import In, Nothing, Out, job, op, usable_as_dagster_type
@@ -51,15 +52,20 @@ def get_s3_data(context):
 
 
 @op
-def process_data():
-    pass
+def process_data(raw_stocks: List[Stock]) -> Aggregation:
+    highest  = max(raw_stocks, key=lambda x: x.high)
+    return Aggregation(date=highest.date, high=highest.high)
 
 
-@op
-def put_redis_data():
+@op(
+    ins={"highest_stock": In(dagster_type=Aggregation)},
+    out=Out(dagster_type=Nothing),
+    description="Upload an Aggregation to Redis"
+)
+def put_redis_data(highest_stock):
     pass
 
 
 @job
 def week_1_pipeline():
-    pass
+    put_redis_data(process_data(get_s3_data()))
